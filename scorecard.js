@@ -5,6 +5,11 @@
  *  - Example Visualizations - https://github.com/looker/custom_visualizations_v2/tree/master/src/examples
  *  - How to use the CVB - https://developers.looker.com/marketplace/tutorials/about-custom-viz-builder
  **/
+ function extractNumber(str) {
+    var regex = /(\d+)$/;
+    var matches = regex.exec(str);
+    return matches ? parseInt(matches[1], 10) : null;
+};
 
  const visObject = {
     /**
@@ -26,10 +31,10 @@
             label: "Text alignment",
             display: "select",
             values: [
-            {"Left": "left"},
-            {"Center": "center"},
-            {"Right": "right"}
-            ],
+                {"Left": "left"},
+                {"Center": "center"},
+                {"Right": "right"}
+                ],
             default: 'Left',
             section: "First Value",
             order:2
@@ -42,15 +47,6 @@
             section: "First Value",
             order: 3
         },
-        varianceThreshold: {
-            type: "number",
-            label: "Variance Threshold",
-            default: 5,
-            min: 0,
-            max: 100,
-            section: "Second Value",
-            order: 3
-        },
         widthForValue2: {
             type: "number",
             label: "Width (%)",
@@ -60,42 +56,93 @@
             section: "Second Value",
             order:1
           },
-          textAlignForValue2: {
+        textAlignForValue2: {
             type: "string",
             label: "Text alignment",
             display: "select",
             values: [
-            {"Left": "left"},
-            {"Center": "center"},
-            {"Right": "right"}
-            ],
+                {"Left": "left"},
+                {"Center": "center"},
+                {"Right": "right"}
+                ],
             default: 'Left',
             section: "Second Value",
             order:2
           },
-          widthForValue3: {
-              type: "number",
-              label: "Width (%)",
-              default: 33,
-              min: 0,
-              max: 100,
-              section: "Third Value",
-              order:1
-          },
-          textAlignForValue3: {
-              type: "string",
-              label: "Text alignment",
-              display: "select",
-              values: [
-              {"Left": "left"},
-              {"Center": "center"},
-              {"Right": "right"}
-              ],
-              default: 'Left',
-              section: "Third Value",
-              order:2
-          }
+          varianceAmberThreshold: {
+            type: "number",
+            label: " Amber Variance Threshold",
+            default: 5,
+            min: 0,
+            max: 100,
+            section: "Second Value",
+            order: 4
         },
+        varianceGreenThreshold: {
+            type: "number",
+            label: "Green Variance Threshold",
+            default: 5,
+            min: 0,
+            max: 100,
+            section: "Second Value",
+            order: 3
+        },
+        formatForValue2: {
+            type: "string",
+            label: "Format",
+            display: "select",
+            values: [
+                {"Percent 0": "percent_0"},
+                {"Percent 1": "percent_1"},
+                {"Percent 2": "percent_2"},
+                {"Decimal 0": "decimal_0"},
+                {"Decimal 1": "decimal_1"},
+                {"Decimal 2": "decimal_2"},
+                ],
+            default: "Decimal 0",
+            section: "Second Value",
+            order: 5
+        },
+        widthForValue3: {
+            type: "number",
+            label: "Width (%)",
+            default: 33,
+            min: 0,
+            max: 100,
+            section: "Third Value",
+            order:1
+          },
+        textAlignForValue3: {
+            type: "string",
+            label: "Text alignment",
+            display: "select",
+            values: [
+                {"Left": "left"},
+                {"Center": "center"},
+                {"Right": "right"}
+                ],
+            default: 'Left',
+            section: "Third Value",
+            order:2
+          },
+          formatForValue3: {
+            type: "string",
+            label: "Format",
+            display: "select",
+            values: [
+                {"Percent 0": "percent_0"},
+                {"Percent 1": "percent_1"},
+                {"Percent 2": "percent_2"},
+                {"Decimal 0": "decimal_0"},
+                {"Decimal 1": "decimal_1"},
+                {"Decimal 2": "decimal_2"},
+                ],
+            default: "Decimal 0",
+            section: "Third Value",
+            order: 3
+        }
+        },
+        
     
     /**
      * The create function gets called when the visualization is mounted but before any
@@ -121,7 +168,9 @@
         container.style.height = "100%";
     
         var rowData = data[0];
-        var fields = Object.keys(rowData);
+        var fields = queryResponse.fields.dimensions.concat(queryResponse.fields.measures)
+            .filter(field => !field.is_hidden)
+            .map(field => field.name);
     
         // Extract the second and third values
         var value2 = parseFloat(rowData[fields[1]].value);
@@ -134,42 +183,50 @@
             var textAlign = config[`textAlignForValue${index + 1}`] || "left";
             
             countDiv.style.textAlign = textAlign;
-            countDiv.style.marginTop = "1.6%";
+            countDiv.style.marginTop = "2.5%";
             countDiv.style.width = width + "%";
             countDiv.style.display = "flex";
             countDiv.style.flexDirection = "column";
             countDiv.style.justifyContent = "center";
             countDiv.style.position = "relative"; // Add this line
-
+    
             var containerHeight = element.offsetHeight;
             var containerWidth = element.offsetWidth;
-            var fontSize = Math.min(element.offsetWidth/40,element.offsetHeight/2);
-    
-            // // Adding the border, except for the last element
-            // if (index < fields.length - 1) {
-            //     countDiv.style.borderRight = "1px solid #D3D3D3";
-            // }
+            var fontSize = Math.min(element.offsetWidth / 40, element.offsetHeight / 2);
     
             var fieldValue = document.createElement("h2");
-            fieldValue.innerText = rowData[field].value;
             fieldValue.style.margin = "0";
             fieldValue.style.fontSize = fontSize + "px";
             fieldValue.style.padding = fontSize + "px";
     
-            // Apply color logic
+            // Apply color and text logic
             if (index === 0) {
+                fieldValue.innerText = rowData[field].value;
                 fieldValue.style.color = config.colorForValue1;
-            } else if (index === 1) {
-                var variance = Math.abs(value3 - value2);
-                if (value2 === value3) {
-                    fieldValue.style.color = "green";
-                } else if (variance <= varianceThreshold) {
-                    fieldValue.style.color = "#FFBF00";
-                } else {
-                    fieldValue.style.color = "red";
-                }
             } else {
-                fieldValue.style.color = "black";
+                var rawValue = parseFloat(rowData[field].value);
+                var format = config[`formatForValue${index + 1}`];
+                if (format.includes('decimal')) {
+                    fieldValue.innerText = (Math.round(rawValue * 100) / 100).toFixed(extractNumber(format));
+                } else {
+                    fieldValue.innerText = ((rawValue * 100).toFixed(extractNumber(format))) + '%';
+                }
+    
+                if (index === 1) {
+                    var variance = Math.abs(value3 - value2);
+                    console.log("Variance:", variance);
+                
+                    if (variance <= config.varianceGreenThreshold) {
+                        fieldValue.style.color = "green";
+                    } else if (variance > config.varianceGreenThreshold && variance <= config.varianceAmberThreshold) {
+                        fieldValue.style.color = "#FFBF00";
+                    } else {
+                        fieldValue.style.color = "red";
+                    }
+                } else {
+                    fieldValue.style.color = "black";
+                }
+                
             }
     
             countDiv.appendChild(fieldValue);
@@ -178,8 +235,7 @@
     
         element.appendChild(container);
         doneRendering();
-    }
-    
+    }    
 };
 
    

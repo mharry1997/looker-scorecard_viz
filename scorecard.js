@@ -134,7 +134,7 @@
             var textAlign = config[`textAlignForValue${index + 1}`] || "left";
             
             countDiv.style.textAlign = textAlign;
-            countDiv.style.marginTop = "2%";
+            countDiv.style.marginTop = "1.6%";
             countDiv.style.width = width + "%";
             countDiv.style.display = "flex";
             countDiv.style.flexDirection = "column";

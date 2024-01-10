@@ -168,9 +168,10 @@
         container.style.height = "100%";
     
         var rowData = data[0];
-        var fields = queryResponse.fields.dimensions.concat(queryResponse.fields.measures)
-            .filter(field => !field.is_hidden)
-            .map(field => field.name);
+        var fields = queryResponse.fields.dimensions.map(field => field.name)
+        .concat(queryResponse.fields.measures.map(field => field.name))
+        .concat(queryResponse.fields.table_calculations.map(field => field.name))
+        .filter(field => !field.is_hidden);
     
         // Extract the second and third values
         var value2 = parseFloat(rowData[fields[1]].value);
